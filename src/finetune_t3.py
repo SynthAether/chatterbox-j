@@ -1,4 +1,5 @@
 import argparse
+from typing import Optional, List
 import logging
 import os
 import json
@@ -9,6 +10,7 @@ from typing import Dict, List, Optional, Union, Any
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
+
 import librosa
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
@@ -23,6 +25,7 @@ from transformers import (
 )
 from transformers import TrainingArguments as HfTrainingArguments
 from datasets import load_dataset, DatasetDict, VerificationMode, Audio
+from torch.utils.data import DataLoader
 import datasets
 
 from chatterbox.tts import ChatterboxTTS, Conditionals, punc_norm, REPO_ID
@@ -30,6 +33,7 @@ from chatterbox.models.t3.t3 import T3, T3Cond
 from chatterbox.models.t3.modules.t3_config import T3Config
 from chatterbox.models.s3tokenizer import S3_SR, SPEECH_VOCAB_SIZE
 from chatterbox.models.s3gen import S3GEN_SR
+from chatterbox.data.local_folder_dataset import LocalChatterboxDataset
 
 #from chatterbox.utils.t3data_arguments import DataArguments
 #from chatterbox.utils.t3dataset import SpeechFineTuningDataset
