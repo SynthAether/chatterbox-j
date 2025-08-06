@@ -14,4 +14,9 @@ class CustomTrainingArguments(HfTrainingArguments):
     dataloader_persistent_workers: bool = field(
         default=True, metadata={"help": "Use persistent workers for the dataloader."}
     )
+
+    dry_run_batches: Optional[int] = field(
+        default=None,
+        metadata={"help": "If set, iterate this many batches through the dataloader then exit."},
+    )
     
