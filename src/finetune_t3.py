@@ -3,13 +3,14 @@ from typing import Optional, List
 import logging
 import os
 import json
+import math
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union, Any
 
 import torch
 import torch.nn.functional as F
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 
 import librosa
 import numpy as np
@@ -50,6 +51,10 @@ logger = logging.getLogger(__name__)
 class CustomTrainingArguments(HfTrainingArguments):
     early_stopping_patience: Optional[int] = field(
         default=None, metadata={"help": "Enable early stopping with specified patience. Default: None (disabled)."}
+    )
+    dry_run_batches: Optional[int] = field(
+        default=None,
+        metadata={"help": "If set, iterate this many batches through the dataloader then exit."},
     )
 
 # --- Argument Classes (ModelArguments, DataArguments) ---
@@ -106,6 +111,19 @@ class DataArguments:
     )
     ignore_verifications: bool = field(
         default=False, metadata={"help":"Set to true to ignore dataset verifications."}
+    )
+
+    data_root: Optional[str] = field(
+        default=None,
+        metadata={"help": "Root directory containing local (wav, txt) dataset."},
+    )
+    splits: Optional[List[str]] = field(
+        default=None,
+        metadata={"help": "Optional list of split subfolders under data_root."},
+    )
+    target_sr: int = field(
+        default=16000,
+        metadata={"help": "Target sampling rate when loading local data."},
     )
 
 # --- Dataset Class ---
@@ -463,10 +481,24 @@ def main():
     raw_datasets = DatasetDict()
     verification_mode = VerificationMode.NO_CHECKS if data_args.ignore_verifications else VerificationMode.BASIC_CHECKS
 
-    train_hf_dataset: Union[datasets.Dataset, List[Dict[str,str]]]
-    eval_hf_dataset: Optional[Union[datasets.Dataset, List[Dict[str,str]]]] = None 
+    train_hf_dataset: Union[datasets.Dataset, List[Dict[str,str]], Dataset]
+    eval_hf_dataset: Optional[Union[datasets.Dataset, List[Dict[str,str]], Dataset]] = None
 
-    if data_args.dataset_name:
+    if data_args.data_root:
+        full_dataset = LocalChatterboxDataset(data_args.data_root, data_args.splits, data_args.target_sr)
+        if training_args.do_eval and data_args.eval_split_size > 0 and len(full_dataset) > 1:
+            eval_count = math.ceil(len(full_dataset) * data_args.eval_split_size)
+            eval_count = min(eval_count, len(full_dataset) - 1)
+            train_count = len(full_dataset) - eval_count
+            train_indices = list(range(train_count))
+            eval_indices = list(range(train_count, len(full_dataset)))
+            train_hf_dataset = Subset(full_dataset, train_indices)
+            eval_hf_dataset = Subset(full_dataset, eval_indices)
+        else:
+            train_hf_dataset = full_dataset
+        is_hf_format_train = True
+        is_hf_format_eval = True
+    elif data_args.dataset_name:
         logger.info(f"Loading dataset '{data_args.dataset_name}' from Hugging Face Hub.")
         raw_datasets_loaded = load_dataset( # Use a different var name to avoid conflict with outer raw_datasets
             data_args.dataset_name,
@@ -542,9 +574,23 @@ def main():
                                                 is_hf_format_eval
                                                 )
 
-    data_collator = SpeechDataCollator(chatterbox_t3_config_instance, 
+    data_collator = SpeechDataCollator(chatterbox_t3_config_instance,
                                        chatterbox_t3_config_instance.stop_text_token,
                                        chatterbox_t3_config_instance.stop_speech_token)
+    if training_args.dry_run_batches:
+        logger.info(f"Running dry run for {training_args.dry_run_batches} batches")
+        dl = DataLoader(train_dataset,
+                        batch_size=training_args.per_device_train_batch_size,
+                        collate_fn=data_collator,
+                        num_workers=training_args.dataloader_num_workers,
+                        pin_memory=training_args.dataloader_pin_memory)
+        for i, batch in enumerate(dl):
+            logger.info(
+                f"Batch {i}: text_tokens {batch['text_tokens'].shape}, speech_tokens {batch['speech_tokens'].shape}")
+            if i + 1 >= training_args.dry_run_batches:
+                break
+        logger.info("Dry run complete. Exiting.")
+        return
 
     hf_trainable_model = T3ForFineTuning(t3_model, chatterbox_t3_config_instance)
 

@@ -1,10 +1,12 @@
-import os
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import logging
 import torchaudio as ta
-import torch
+import numpy as np
 from torch.utils.data import Dataset
+
+logger = logging.getLogger(__name__)
 
 
 def _pair_wav_txt(root: Path) -> List[Tuple[Path, Path]]:
@@ -68,10 +70,21 @@ class LocalChatterboxDataset(Dataset):
             split_dirs = [p for p in self.data_root.iterdir() if p.is_dir()]
 
         pairs: List[Tuple[Path, Path]] = []
+        self.split_counts: Dict[str, int] = {}
         for sd in split_dirs:
-            pairs.extend(_pair_wav_txt(sd))
+            split_pairs = _pair_wav_txt(sd)
+            self.split_counts[sd.name] = len(split_pairs)
+            pairs.extend(split_pairs)
 
         self.items = pairs
+
+        logger.info("LocalChatterboxDataset splits: %s", [p.name for p in split_dirs])
+        for name, count in self.split_counts.items():
+            logger.info("  %s: %d pairs", name, count)
+        logger.info("  total pairs: %d", len(self.items))
+        preview = [p[0].stem for p in self.items[:5]]
+        if preview:
+            logger.info("  first %d items: %s", len(preview), preview)
 
     def __len__(self) -> int:
         return len(self.items)
@@ -82,14 +95,18 @@ class LocalChatterboxDataset(Dataset):
         text = txt_path.read_text(encoding="utf-8").strip()
 
         # Load audio and resample to tokenizer/VE SR (chatterbox uses 16 kHz upstream)
-        wav, sr = ta.load(str(wav_path))
-        if sr != self.target_sr:
-            wav = ta.functional.resample(wav, sr, self.target_sr)
+        try:
+            wav, sr = ta.load(str(wav_path))
+            if sr != self.target_sr:
+                wav = ta.functional.resample(wav, sr, self.target_sr)
+                sr = self.target_sr
+            if wav.size(0) > 1:
+                wav = wav.mean(dim=0, keepdim=True)
+            wav = wav.squeeze(0).contiguous().numpy().astype(np.float32)
+        except Exception as e:
+            logger.warning("Failed to load/resample %s: %s", wav_path, e)
+            wav = np.array([], dtype=np.float32)
             sr = self.target_sr
-        # ensure mono
-        if wav.size(0) > 1:
-            wav = wav.mean(dim=0, keepdim=True)
-        wav = wav.squeeze(0).contiguous()
 
         return {
             "text": text,
