@@ -45,7 +45,17 @@ class ConditionalCFM(BASECFM):
         self.lock = threading.Lock()
 
     @torch.inference_mode()
-    def forward(self, mu, mask, n_timesteps, temperature=1.0, spks=None, cond=None, prompt_len=0, flow_cache=torch.zeros(1, 80, 0, 2)):
+    def forward(
+        self,
+        mu,
+        mask,
+        n_timesteps,
+        temperature=1.0,
+        spks=None,
+        cond=None,
+        prompt_len=0,
+        flow_cache=torch.zeros(1, 80, 0, 2),
+    ):
         """Forward diffusion
 
         Args:
@@ -117,10 +127,7 @@ class ConditionalCFM(BASECFM):
             spks_in[0] = spks
             cond_in[0] = cond
             dphi_dt = self.forward_estimator(
-                x_in, mask_in,
-                mu_in, t_in,
-                spks_in,
-                cond_in
+                x_in, mask_in, mu_in, t_in, spks_in, cond_in
             )
             dphi_dt, cfg_dphi_dt = torch.split(dphi_dt, [x.size(0), x.size(0)], dim=0)
             dphi_dt = ((1.0 + self.inference_cfg_rate) * dphi_dt - self.inference_cfg_rate * cfg_dphi_dt)
@@ -144,13 +151,17 @@ class ConditionalCFM(BASECFM):
                 self.estimator.set_input_shape('spks', (2, 80))
                 self.estimator.set_input_shape('cond', (2, 80, x.size(2)))
                 # run trt engine
-                self.estimator.execute_v2([x.contiguous().data_ptr(),
-                                           mask.contiguous().data_ptr(),
-                                           mu.contiguous().data_ptr(),
-                                           t.contiguous().data_ptr(),
-                                           spks.contiguous().data_ptr(),
-                                           cond.contiguous().data_ptr(),
-                                           x.data_ptr()])
+                self.estimator.execute_v2(
+                    [
+                        x.contiguous().data_ptr(),
+                        mask.contiguous().data_ptr(),
+                        mu.contiguous().data_ptr(),
+                        t.contiguous().data_ptr(),
+                        spks.contiguous().data_ptr(),
+                        cond.contiguous().data_ptr(),
+                        x.data_ptr(),
+                    ]
+                )
             return x
 
     def compute_loss(self, x1, mask, mu, spks=None, cond=None):

@@ -13,7 +13,8 @@ def mel_basis(hp):
         n_fft=hp.n_fft,
         n_mels=hp.num_mels,
         fmin=hp.fmin,
-        fmax=hp.fmax)  # -> (nmel, nfreq)
+        fmax=hp.fmax,
+    )  # -> (nmel, nfreq)
 
 
 def preemphasis(wav, hp):

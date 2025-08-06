@@ -17,8 +17,14 @@ import torch.nn.functional as F
 from einops import pack, rearrange, repeat
 
 from .utils.mask import add_optional_chunk_mask
-from .matcha.decoder import SinusoidalPosEmb, Block1D, ResnetBlock1D, Downsample1D, \
-    TimestepEmbedding, Upsample1D
+from .matcha.decoder import (
+    SinusoidalPosEmb,
+    Block1D,
+    ResnetBlock1D,
+    Downsample1D,
+    TimestepEmbedding,
+    Upsample1D,
+)
 from .matcha.transformer import BasicTransformerBlock
 
 
@@ -29,9 +35,8 @@ def mask_to_bias(mask: torch.Tensor, dtype: torch.dtype) -> torch.Tensor:
     # attention mask bias
     # NOTE(Mddct): torch.finfo jit issues
     #     chunk_masks = (1.0 - chunk_masks) * torch.finfo(dtype).min
-    mask = (1.0 - mask) * -1.0e+10
+    mask = (1.0 - mask) * -1.0e10
     return mask
-
 
 
 class Transpose(torch.nn.Module):
@@ -82,12 +87,19 @@ class CausalConv1d(torch.nn.Conv1d):
         device=None,
         dtype=None
     ) -> None:
-        super(CausalConv1d, self).__init__(in_channels, out_channels,
-                                           kernel_size, stride,
-                                           padding=0, dilation=dilation,
-                                           groups=groups, bias=bias,
-                                           padding_mode=padding_mode,
-                                           device=device, dtype=dtype)
+        super(CausalConv1d, self).__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding=0,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+            padding_mode=padding_mode,
+            device=device,
+            dtype=dtype,
+        )
         assert stride == 1
         self.causal_padding = (kernel_size - 1, 0)
 
@@ -139,8 +151,17 @@ class ConditionalDecoder(nn.Module):
             input_channel = output_channel
             output_channel = channels[i]
             is_last = i == len(channels) - 1
-            resnet = CausalResnetBlock1D(dim=input_channel, dim_out=output_channel, time_emb_dim=time_embed_dim) if self.causal else \
-                ResnetBlock1D(dim=input_channel, dim_out=output_channel, time_emb_dim=time_embed_dim)
+            resnet = CausalResnetBlock1D(
+                        dim=input_channel,
+                        dim_out=output_channel, 
+                        time_emb_dim=time_embed_dim
+                     )
+                     if self.causal
+                     else ResnetBlock1D(
+                        dim=input_channel, 
+                        dim_out=output_channel, 
+                        time_emb_dim=time_embed_dim
+                     )
             transformer_blocks = nn.ModuleList(
                 [
                     BasicTransformerBlock(

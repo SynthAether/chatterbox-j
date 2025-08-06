@@ -93,7 +93,9 @@ class AttentionQKV(nn.Module):
         config = self.flash_config if self.flash_config else {}
         with torch.backends.cuda.sdp_kernel(**config):
             out = F.scaled_dot_product_attention(
-                q, k, v,
+                q,
+                k,
+                v,
                 attn_mask=mask,
                 dropout_p=self.dropout_rate if self.training else 0.
             )

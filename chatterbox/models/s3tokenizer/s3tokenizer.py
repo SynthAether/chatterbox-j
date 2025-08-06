@@ -31,7 +31,7 @@ class S3Tokenizer(S3TokenizerV2):
     def __init__(
         self,
         name: str="speech_tokenizer_v2_25hz",
-        config: ModelConfig = ModelConfig()
+        config: ModelConfig = ModelConfig(),
     ):
         super().__init__(name)
 
@@ -79,6 +79,13 @@ class S3Tokenizer(S3TokenizerV2):
         """Prepare a list of audios for s3tokenizer processing."""
         processed_wavs = []
         for wav in wavs:
+            # Handle both numpy arrays and PyTorch tensors
+            if isinstance(wav, torch.Tensor):
+                wav = wav.cpu().numpy()
+            elif isinstance(wav, np.ndarray):
+                pass  # Already numpy
+            else:
+                wav = np.array(wav)
             if isinstance(wav, np.ndarray):
                 wav = torch.from_numpy(wav)
             if wav.dim() == 1:
@@ -119,7 +126,12 @@ class S3Tokenizer(S3TokenizerV2):
         else:
             tokenizer = accelerator.unwrap_model(self)
 
-        speech_tokens, speech_token_lens = tokenizer.quantize(mels, mel_lens.to(self.device))
+        speech_tokens, speech_token_lens = tokenizer.quantize(
+            mels, mel_lens.to(self.device)
+        )
+
+        speech_tokens = speech_tokens.to(self.device)
+        speech_token_lens = speech_token_lens.to(self.device)
         return (
             speech_tokens.long().detach(),
             speech_token_lens.long().detach(),
@@ -154,11 +166,13 @@ class S3Tokenizer(S3TokenizerV2):
         if padding > 0:
             audio = F.pad(audio, (0, padding))
         stft = torch.stft(
-            audio, self.n_fft, S3_HOP,
+            audio,
+            self.n_fft,
+            S3_HOP,
             window=self.window.to(self.device),
-            return_complex=True
+            return_complex=True,
         )
-        magnitudes = stft[..., :-1].abs()**2
+        magnitudes = stft[..., :-1].abs() ** 2
 
         mel_spec = self._mel_filters.to(self.device) @ magnitudes
 

@@ -66,8 +66,12 @@ class T3(nn.Module):
             self.speech_pos_emb = LearnedPositionEmbeddings(max_mel_seq_len, self.dim)
 
         # logit projection
-        self.text_head = nn.Linear(self.cfg.hidden_size, hp.text_tokens_dict_size, bias=False)
-        self.speech_head = nn.Linear(self.cfg.hidden_size, hp.speech_tokens_dict_size, bias=False)
+        self.text_head = nn.Linear(
+            self.cfg.hidden_size, hp.text_tokens_dict_size, bias=False
+        )
+        self.speech_head = nn.Linear(
+            self.cfg.hidden_size, hp.speech_tokens_dict_size, bias=False
+        )
         self.compiled = False
 
     @property
@@ -78,9 +82,13 @@ class T3(nn.Module):
         """
         Token cond data needs to be embedded, so that needs to be here instead of in `T3CondEnc`.
         """
-        if t3_cond.cond_prompt_speech_tokens is not None and t3_cond.cond_prompt_speech_emb is None:
-            t3_cond.cond_prompt_speech_emb = self.speech_emb(t3_cond.cond_prompt_speech_tokens) + \
-                self.speech_pos_emb(t3_cond.cond_prompt_speech_tokens)
+        if (
+            t3_cond.cond_prompt_speech_tokens is not None
+            and t3_cond.cond_prompt_speech_emb is None
+        ):
+            t3_cond.cond_prompt_speech_emb = self.speech_emb(
+                t3_cond.cond_prompt_speech_tokens
+            ) + self.speech_pos_emb(t3_cond.cond_prompt_speech_tokens)
         return self.cond_enc(t3_cond)  # (B, len_cond, dim)
 
     def prepare_input_embeds(

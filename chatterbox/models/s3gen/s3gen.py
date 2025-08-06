@@ -252,12 +252,20 @@ class S3Token2Wav(S3Token2Mel):
         ref_dict: Optional[dict] = None,
         finalize: bool = False
     ):
-        output_mels = super().forward(speech_tokens, ref_wav=ref_wav, ref_sr=ref_sr, ref_dict=ref_dict, finalize=finalize)
+        output_mels = super().forward(
+            speech_tokens,
+            ref_wav=ref_wav,
+            ref_sr=ref_sr,
+            ref_dict=ref_dict,
+            finalize=finalize,
+        )
 
         # TODO jrm: ignoring the speed control (mel interpolation) and the HiFTGAN caching mechanisms for now.
         hift_cache_source = torch.zeros(1, 1, 0).to(self.device)
 
-        output_wavs, *_ = self.mel2wav.inference(speech_feat=output_mels, cache_source=hift_cache_source)
+        output_wavs, *_ = self.mel2wav.inference(
+            speech_feat=output_mels, cache_source=hift_cache_source
+        )
 
         if not self.training:
             # NOTE: ad-hoc method to reduce "spillover" from the reference clip.
@@ -296,7 +304,13 @@ class S3Token2Wav(S3Token2Mel):
         cache_source: torch.Tensor = None, # NOTE: this arg is for streaming, it can probably be removed here
         finalize: bool = True,
     ):
-        output_mels = self.flow_inference(speech_tokens, ref_wav=ref_wav, ref_sr=ref_sr, ref_dict=ref_dict, finalize=finalize)
+        output_mels = self.flow_inference(
+            speech_tokens,
+            ref_wav=ref_wav,
+            ref_sr=ref_sr,
+            ref_dict=ref_dict,
+            finalize=finalize,
+        )
         output_wavs, output_sources = self.hift_inference(output_mels, cache_source)
 
         # NOTE: ad-hoc method to reduce "spillover" from the reference clip.

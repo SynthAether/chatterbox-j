@@ -170,12 +170,12 @@ class ConformerEncoderLayer(nn.Module):
 
         Args:
             x (torch.Tensor): (#batch, time, size)
-            mask (torch.Tensor): Mask tensor for the input (#batch, time，time),
+            mask (torch.Tensor): Mask tensor for the input (#batch, time, time),
                 (0, 0, 0) means fake mask.
             pos_emb (torch.Tensor): positional encoding, must not be None
                 for ConformerEncoderLayer.
             mask_pad (torch.Tensor): batch padding mask used for conv module.
-                (#batch, 1，time), (0, 0, 0) means fake mask.
+                (#batch, 1, time), (0, 0, 0) means fake mask.
             att_cache (torch.Tensor): Cache tensor of the KEY & VALUE
                 (#batch=1, head, cache_t1, d_k * 2), head * d_k == size.
             cnn_cache (torch.Tensor): Convolution cache in conformer layer
@@ -193,8 +193,7 @@ class ConformerEncoderLayer(nn.Module):
             residual = x
             if self.normalize_before:
                 x = self.norm_ff_macaron(x)
-            x = residual + self.ff_scale * self.dropout(
-                self.feed_forward_macaron(x))
+            x = residual + self.ff_scale * self.dropout(self.feed_forward_macaron(x))
             if not self.normalize_before:
                 x = self.norm_ff_macaron(x)
 
@@ -202,8 +201,7 @@ class ConformerEncoderLayer(nn.Module):
         residual = x
         if self.normalize_before:
             x = self.norm_mha(x)
-        x_att, new_att_cache = self.self_attn(x, x, x, mask, pos_emb,
-                                              att_cache)
+        x_att, new_att_cache = self.self_attn(x, x, x, mask, pos_emb, att_cache)
         x = residual + self.dropout(x_att)
         if not self.normalize_before:
             x = self.norm_mha(x)

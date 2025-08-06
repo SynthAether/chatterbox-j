@@ -30,8 +30,18 @@ feat_extractor: !name:matcha.utils.audio.mel_spectrogram
 
 """
 
-def mel_spectrogram(y, n_fft=1920, num_mels=80, sampling_rate=24000, hop_size=480, win_size=1920,
-                    fmin=0, fmax=8000, center=False):
+
+def mel_spectrogram(
+    y,
+    n_fft=1920,
+    num_mels=80,
+    sampling_rate=24000,
+    hop_size=480,
+    win_size=1920,
+    fmin=0,
+    fmax=8000,
+    center=False,
+):
     """Copied from https://github.com/shivammehta25/Matcha-TTS/blob/main/matcha/utils/audio.py
     Set default values according to Cosyvoice's config.
     """
@@ -54,7 +64,9 @@ def mel_spectrogram(y, n_fft=1920, num_mels=80, sampling_rate=24000, hop_size=48
         hann_window[str(y.device)] = torch.hann_window(win_size).to(y.device)
 
     y = torch.nn.functional.pad(
-        y.unsqueeze(1), (int((n_fft - hop_size) / 2), int((n_fft - hop_size) / 2)), mode="reflect"
+        y.unsqueeze(1),
+        (int((n_fft - hop_size) / 2), int((n_fft - hop_size) / 2)),
+        mode="reflect",
     )
     y = y.squeeze(1)
 

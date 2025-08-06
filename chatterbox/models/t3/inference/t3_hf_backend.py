@@ -34,9 +34,13 @@ class T3HuggingfaceBackend(LlamaPreTrainedModel, GenerationMixin):
 
     @torch.inference_mode()
     def prepare_inputs_for_generation(
-        self, input_ids: torch.Tensor, decoder_cond: torch.Tensor, use_cache: bool, past_key_values=None,
+        self,
+        input_ids: torch.Tensor,
+        decoder_cond: torch.Tensor,
+        use_cache: bool,
+        past_key_values=None,
         # This argument was introduced in some recent version of transformers (>=4.29.1)
-        cache_position=None
+        cache_position=None,
     ):
         """
         This is a method used by huggingface's generate() method.

@@ -256,7 +256,9 @@ class MultiHeadAttention(nn.Module):
 
 
 class FFN(nn.Module):
-    def __init__(self, in_channels, out_channels, filter_channels, kernel_size, p_dropout=0.0):
+    def __init__(
+        self, in_channels, out_channels, filter_channels, kernel_size, p_dropout=0.0
+    ):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -264,8 +266,12 @@ class FFN(nn.Module):
         self.kernel_size = kernel_size
         self.p_dropout = p_dropout
 
-        self.conv_1 = torch.nn.Conv1d(in_channels, filter_channels, kernel_size, padding=kernel_size // 2)
-        self.conv_2 = torch.nn.Conv1d(filter_channels, out_channels, kernel_size, padding=kernel_size // 2)
+        self.conv_1 = torch.nn.Conv1d(
+            in_channels, filter_channels, kernel_size, padding=kernel_size // 2
+        )
+        self.conv_2 = torch.nn.Conv1d(
+            filter_channels, out_channels, kernel_size, padding=kernel_size // 2
+        )
         self.drop = torch.nn.Dropout(p_dropout)
 
     def forward(self, x, x_mask):
@@ -370,7 +376,9 @@ class TextEncoder(nn.Module):
             encoder_params.p_dropout,
         )
 
-        self.proj_m = torch.nn.Conv1d(self.n_channels + (spk_emb_dim if n_spks > 1 else 0), self.n_feats, 1)
+        self.proj_m = torch.nn.Conv1d(
+            self.n_channels + (spk_emb_dim if n_spks > 1 else 0), self.n_feats, 1
+        )
         self.proj_w = DurationPredictor(
             self.n_channels + (spk_emb_dim if n_spks > 1 else 0),
             duration_predictor_params.filter_channels_dp,
