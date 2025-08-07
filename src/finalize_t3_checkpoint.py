@@ -4,7 +4,9 @@ import shutil
 from pathlib import Path
 
 import torch
-from safetensors.torch import load_file
+from safetensors.torch import load_file, save_file
+
+logger = logging.getLogger(__name__)
 
 PRETRAINED_FILES = ["ve.safetensors", "s3gen.safetensors", "tokenizer.json", "conds.pt"]
 
@@ -49,7 +51,7 @@ def load_base_model(checkpoint_path: Path, local_dir: Path | None, repo_id: str 
                     local_dir_use_symlinks=False,
                 )
             except Exception as e:  # noqa: BLE001
-                logging.getLogger(__name__).warning("Could not download %s: %s", fname, e)
+                logger.warning("Could not download %s: %s", fname, e)
         model_dir = download_dir
 
     model = ChatterboxTTS.from_local(ckpt_dir=str(model_dir), device="cpu")
@@ -87,13 +89,18 @@ def main() -> None:
 
     missing, unexpected = base_model.t3.load_state_dict(state, strict=False)
     if missing:
-        logging.getLogger(__name__).debug("Missing keys when loading checkpoint: %s", missing)
+        logger.debug("Missing keys when loading checkpoint: %s", missing)
     if unexpected:
-        logging.getLogger(__name__).debug("Unexpected keys when loading checkpoint: %s", unexpected)
+        logger.debug("Unexpected keys when loading checkpoint: %s", unexpected)
 
-    out_path = output_dir / "t3_cfg.pt"
-    torch.save(base_model.t3.state_dict(), out_path)
-    logging.getLogger(__name__).info("Saved T3 weights to %s", out_path)
+    state_dict = base_model.t3.state_dict()
+    out_pt = output_dir / "t3_cfg.pt"
+    torch.save(state_dict, out_pt)
+    logger.info("Saved T3 weights to %s", out_pt)
+
+    out_safetensor = output_dir / "t3_cfg.safetensors"
+    save_file(state_dict, str(out_safetensor))
+    logger.info("Saved T3 weights to %s", out_safetensor)
 
     for fname in PRETRAINED_FILES:
         src = base_dir / fname
